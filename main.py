@@ -604,7 +604,7 @@ def main() -> None:
 
     Developed by Hoang Gia Kiet - Tool Reset Token cũ thành Token mới
     Facebook: https://web.facebook.com/quangthang.8507
-    GitHub: https://github.com/giakietdev/changeTokenDiscord
+    GitHub: https://github.com/giakietdev/discordtokenchange
     Zalo: 0382073843
        
                                                                                                                                       
