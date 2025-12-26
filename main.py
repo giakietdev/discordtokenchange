@@ -544,6 +544,211 @@ def BoMayLaHoangGiaKiet(originalLine: str, misc: Miscellaneous, fileLock: thread
 
 def main() -> None:
     try:
+        # code cre ngocuyencoder https://github.com/hngocuyen/introduce
+        import random as r, time as t, math as m, shutil as s, os as o, sys as y
+        A = 'hoanggiakiet'
+        B = len(A)
+        C = 900
+        D = 3.0
+        E = 0.8
+        F = 4.0
+
+        def G(r1, g1, b1):
+            return f'\x1b[38;2;{int(r1)};{int(g1)};{int(b1)}m'
+
+        def H():
+            return '\x1b[0m'
+        I = [[r.randint(100, 255), r.randint(50, 255), r.randint(150, 255)] for _ in range(C)]
+
+        def J():
+            p = []
+            for i in range(C):
+                a = i / C * 2 * m.pi
+                x = 16 * m.sin(a) ** 3
+                y1 = 13 * m.cos(a) - 5 * m.cos(2 * a) - 2 * m.cos(3 * a) - m.cos(4 * a)
+                z = (r.random() - 0.5) * 5
+                p.append([x / 6, -y1 / 6, z / 8])
+            return p
+
+        def K():
+            p = []
+            v = 3.0
+            for i in range(C):
+                a = m.acos(1 - 2 * (i / C))
+                b = m.pi * (1 + 5 ** 0.5) * i
+                p.append([v * m.cos(b) * m.sin(a), v * m.sin(b) * m.sin(a), v * m.cos(a)])
+            return p
+
+        def L():
+            p = []
+            v = [[0, -3.2, 0], [2.5, 1.8, 2.5], [-2.5, 1.8, 2.5], [0, 1.8, -3.2]]
+            e = [(0, 1), (0, 2), (0, 3), (1, 2), (2, 3), (3, 1)]
+            n = C // len(e)
+            for a, b in e:
+                p1, p2 = (v[a], v[b])
+                for i in range(n):
+                    p.append([p1[j] + (p2[j] - p1[j]) * (i / n) for j in range(3)])
+            while len(p) < C:
+                p.append(p[-1])
+            return p
+
+        def M():
+            p = []
+            s1 = 2.5
+            v = [[x, y, z] for x in (-s1, s1) for y in (-s1, s1) for z in (-s1, s1)]
+            e = [(0, 1), (1, 3), (3, 2), (2, 0), (4, 5), (5, 7), (7, 6), (6, 4), (0, 4), (1, 5), (2, 6), (3, 7)]
+            n = C // len(e)
+            for a, b in e:
+                p1, p2 = (v[a], v[b])
+                for i in range(n):
+                    p.append([p1[j] + (p2[j] - p1[j]) * (i / n) for j in range(3)])
+            while len(p) < C:
+                p.append(p[-1])
+            return p
+
+        def N():
+            p = []
+            r1 = 2.5
+            r2 = 1.0
+            for i in range(C):
+                a = i % int(m.sqrt(C)) * (2 * m.pi / m.sqrt(C))
+                b = i // int(m.sqrt(C)) * (2 * m.pi / (C / m.sqrt(C)))
+                x = (r1 + r2 * m.cos(a)) * m.cos(b)
+                y1 = (r1 + r2 * m.cos(a)) * m.sin(b)
+                z = r2 * m.sin(a)
+                p.append([x, y1, z])
+            while len(p) < C:
+                p.append(p[-1])
+            return p
+
+        def O():
+            p = []
+            s1 = 3.5
+            v = [[s1, 0, 0], [-s1, 0, 0], [0, s1, 0], [0, -s1, 0], [0, 0, s1], [0, 0, -s1]]
+            e = [(4, 0), (4, 2), (4, 1), (4, 3), (5, 0), (5, 2), (5, 1), (5, 3), (0, 2), (2, 1), (1, 3), (3, 0)]
+            n = C // len(e)
+            for a, b in e:
+                p1, p2 = (v[a], v[b])
+                for i in range(n):
+                    p.append([p1[j] + (p2[j] - p1[j]) * (i / n) for j in range(3)])
+            while len(p) < C:
+                p.append(p[-1])
+            return p
+
+        def P(v, x, y, z):
+            a, b, c = v
+            b, c = (b * m.cos(x) - c * m.sin(x), b * m.sin(x) + c * m.cos(x))
+            a, c = (a * m.cos(y) + c * m.sin(y), -a * m.sin(y) + c * m.cos(y))
+            a, b = (a * m.cos(z) - b * m.sin(z), a * m.sin(z) + b * m.cos(z))
+            return [a, b, c]
+
+        def Q(v, x, y, z):
+            p = 10 / (v[2] + 15)
+            return (int(x + v[0] * z * p * 2.5), int(y + v[1] * z * p), v[2])
+
+        def R(p1, p2, w, h, b):
+            x1, y1 = (p1[0], p1[1])
+            x2, y2 = (p2[0], p2[1])
+            dx, dy = (abs(x2 - x1), abs(y2 - y1))
+            s1 = max(dx, dy)
+            if not s1:
+                return
+            r1 = int(r.randint(100, 255) * b)
+            g1 = int(r.randint(50, 255) * b)
+            b1 = int(r.randint(150, 255) * b)
+            for i in range(0, s1, 3):
+                k = i / s1
+                x, y1 = (int(x1 + (x2 - x1) * k), int(y1 + (y2 - y1) * k))
+                if 1 <= x <= w and 1 <= y1 <= h:
+                    y.stdout.write(f'\x1b[{y1};{x}H{G(r1, g1, b1)}~')
+
+        def V():
+            y.stdout.write('\x1b[?25l')
+
+        def W():
+            y.stdout.write('\x1b[?25h')
+        S = [J(), K(), N(), L(), O(), M()]
+        U = [[r.uniform(-25, 25) for _ in range(3)] for _ in range(C)]
+        V()
+        o.system('cls' if o.name == 'nt' else 'clear')
+        T = t.time()
+        X = -1
+        Y = 0
+        Z = []
+        try:
+            while True:
+                w1, h1 = s.get_terminal_size()
+                cx, cy = (w1 // 2, h1 // 2)
+                sc = min(w1, h1) // 4.5
+                n1 = t.time()
+                e1 = n1 - T
+                a1, a2, a3 = (e1 * 0.7, e1 * 1.1, e1 * 0.4)
+                sx = cx - B // 2
+                p3 = []
+                if e1 < F:
+                    k = e1 / F
+                    v = k * k * (3 - 2 * k)
+                    for i in range(C):
+                        p3.append([U[i][j] + (S[0][i][j] - U[i][j]) * v for j in range(3)])
+                else:
+                    m1 = (e1 - F) / D
+                    idx = int(m1) % len(S)
+                    nx = (idx + 1) % len(S)
+                    k = m1 - int(m1)
+                    v = k * k * (3 - 2 * k)
+                    for k1 in range(C):
+                        p3.append([S[idx][k1][j] + (S[nx][k1][j] - S[idx][k1][j]) * v for j in range(3)])
+                if e1 > 15 and X < 0:
+                    X = 0
+                    Y = n1
+                if X >= 0 and X < B and (n1 - Y > E):
+                    X += 1
+                    Y = n1
+                Z = [l for l in Z if n1 < l[2]]
+                if r.random() < 0.4:
+                    Z.append([r.randrange(C), r.randrange(C), n1 + 0.12])
+                y.stdout.write('\x1b[H')
+                pd = []
+                for i in range(C):
+                    rd = P(p3[i], a1, a2, a3)
+                    pd.append(Q(rd, cx, cy, sc))
+                for l in Z:
+                    p1, p2 = (pd[l[0]], pd[l[1]])
+                    az = (p1[2] + p2[2]) / 2
+                    br = max(0.1, min(0.6, (az + 4) / 8))
+                    R(p1, p2, w1, h1, br * 2)
+                for i in range(C):
+                    px, py, pz = pd[i]
+                    if 1 <= px <= w1 and 1 <= py <= h1:
+                        br = max(0.2, min(1.0, (pz + 5) / 10)) * 2
+                        r1, g1, b1 = (int(I[i][0] * br), int(I[i][1] * br), int(I[i][2] * br))
+                        ci = i % B
+                        if ci < X:
+                            fx, fy = (sx + ci, cy)
+                            fc = G(I[i][0], I[i][1], I[i][2])
+                        elif ci == X:
+                            k = min((n1 - Y) / E, 1)
+                            fx = int(px + (sx + ci - px) * k)
+                            fy = int(py + (cy - py) * k)
+                            fc = G(r1, g1, b1)
+                        else:
+                            fx, fy = (px, py)
+                            fc = G(r1, g1, b1)
+                        if 1 <= fx <= w1 and 1 <= fy <= h1:
+                            y.stdout.write(f'\x1b[{fy};{fx}H{fc}{A[ci]}')
+                if X >= B:
+                    y.stdout.flush()
+                    t.sleep(5)
+                    break
+                y.stdout.flush()
+                t.sleep(0.01)
+                y.stdout.write('\x1b[2J')
+        except KeyboardInterrupt:
+            pass
+        W()
+        o.system('cls' if o.name == 'nt' else 'clear')
+        input(màu("Press enter or any key to continue to the tool..."))
+        
         startTime = time.time()
         misc = Miscellaneous()
         print(màu("""
