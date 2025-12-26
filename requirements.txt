@@ -3,3 +3,5 @@ websocket-client
 cryptography
 logmagix
 pystyle
+typing_extensions
+requests

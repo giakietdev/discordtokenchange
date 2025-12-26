@@ -2,77 +2,37 @@ import random
 import time
 import ctypes
 import threading
-import tls_client
 import hashlib
 import websocket
 import base64
 import json
 import os
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from logmagix import Logger, Home
 from functools import wraps
-import requests.exceptions
 from pystyle import Colorate, Colors, Center
 
 with open('config.json') as f:
     config = json.load(f)
-
-DEBUG = config['debug']
 
 log = Logger(prefix=None)
 
 originalInfo = log.info
 originalWarning = log.warning
 originalFailure = log.failure
-originalDebug = log.debug
 
 log.info = lambda msg: print(màu(f"[Hoang Gia Kiet] {msg}"))
 log.warning = lambda msg: print(màu(f"[Warning] {msg}"))
 log.failure = lambda msg: print(màu(f"[Failure] {msg}"))
-log.debug = lambda msg: print(màu(f"[Debug] {msg}")) if DEBUG else None
-
 
 outputFolder = "output"
 if not os.path.exists(outputFolder):
     os.makedirs(outputFolder)
 
-
-def debug(funcOrMessage, *args, **kwargs) -> callable:
-    if callable(funcOrMessage):
-        @wraps(funcOrMessage)
-        def wrapper(*args, **kwargs):
-            result = funcOrMessage(*args, **kwargs)
-            if DEBUG:
-                log.debug(f"{funcOrMessage.__name__} returned: {result}")
-            return result
-        return wrapper
-    else:
-        if DEBUG:
-            log.debug(f"Debug: {funcOrMessage}")
-
-def debugResponse(response) -> None:
-    debug(response.headers)
-    try:
-        debug(response.text)
-    except:
-        debug(response.content)
-    debug(response.status_code)
-
-màu = [
-    Colors.DynamicMIX([Colors.cyan, Colors.white, Colors.pink])
-]
-
-mauu = random.choice(màu)
-def màu(text: str) -> str:
-    if Colorate and Colors:
-        try:
-            return Colorate.Horizontal(mauu, text)
-        except Exception:
-            return text
-    return text
 
 def retryWithRateLimit(maxRetries=5, baseDelay=1.0):
     def decorator(func):
@@ -133,8 +93,22 @@ def retryWithRateLimit(maxRetries=5, baseDelay=1.0):
         return wrapper
     return decorator
 
+
+màu = [
+    Colors.DynamicMIX([Colors.cyan, Colors.white, Colors.pink])
+]
+
+mauu = random.choice(màu)
+def màu(text: str) -> str:
+    if Colorate and Colors:
+        try:
+            return Colorate.Horizontal(mauu, text)
+        except Exception:
+            return text
+    return text
+
+
 class Miscellaneous:
-    @debug
     def randomizeUserAgent(self) -> tuple[str, str, str, str]:
         platforms = {
             "Windows NT 10.0; Win64; x64": "Windows",
@@ -257,13 +231,14 @@ class Miscellaneous:
         def incrementTotal(self):
             self.total += 1
 
+
 class KietLaBo:
     def __init__(self, misc: Miscellaneous) -> None:
         self.misc = misc
         self.userAgent, self.browserName, self.browserVersion, self.osName = self.misc.randomizeUserAgent()
 
-        self.session = tls_client.Session("chrome_131", random_tls_extension_order=True)
-        self.session.headers = {
+        self.session = requests.Session()
+        self.session.headers.update({
             'accept': '*/*',
             'accept-language': 'en-US,en;q=0.9',
             'content-type': 'application/json',
@@ -279,9 +254,8 @@ class KietLaBo:
             'x-super-properties': self.generateSuperPropreties(
                 self.userAgent, self.browserName, self.browserVersion, self.osName
             )
-        }
+        })
 
-    @debug
     def generateSuperPropreties(self, userAgent, browserName, browserVersion, osName) -> str:
         payload = {
             "os": osName,
@@ -296,33 +270,28 @@ class KietLaBo:
             "referrer_current": "",
             "referring_domain_current": "",
             "release_channel": "stable",
-            "client_build_number": 380213, 
+            "client_build_number": 380213,
             "client_event_source": None
-            }
+        }
         
         return base64.b64encode(json.dumps(payload).encode()).decode()
     
-    @debug
     @retryWithRateLimit()
-    def createHandshake(self, token: str, fingerprint: str) -> bool:
+    def createHandshake(self, token: str, fingerprint: str) -> bool | int | str:
         self.session.headers['authorization'] = token
 
         response = self.session.post(
             "https://discord.com/api/v9/users/@me/remote-auth", 
             json={'fingerprint': fingerprint},
         )
-
-        debugResponse(response)
-
+        
         if response.status_code == 200:
-            token = response.json().get('handshake_token')
+            handshake_token = response.json().get('handshake_token')
 
-            response =  self.session.post(
+            response = self.session.post(
                 "https://discord.com/api/v9/users/@me/remote-auth/finish", 
-                json={'handshake_token': token}
+                json={'handshake_token': handshake_token}
             )
-
-            debugResponse(response)
             
             if response.status_code == 204:
                 return True
@@ -330,11 +299,12 @@ class KietLaBo:
         elif response.status_code == 401:
             return 401
         else:
+            if 'captcha' in response.text.lower():
+                return "captcha"
             log.failure(f"Lỗi khi tạo handshake: {response.text}, {response.status_code}")
         
         return False
     
-    @debug
     @retryWithRateLimit()
     def logout(self, token: str) -> bool:
         self.session.headers['authorization'] = token
@@ -344,8 +314,6 @@ class KietLaBo:
             json={'provider': None, 'voip_provider': None}
         )
 
-        debugResponse(response)
-
         if response.status_code == 204:
             return True
         else:
@@ -353,14 +321,11 @@ class KietLaBo:
         
         return False
     
-    @debug
     @retryWithRateLimit()
     def getUserInfo(self, token: str) -> dict | None:
         self.session.headers['authorization'] = token
         
         response = self.session.get('https://discord.com/api/v9/users/@me')
-        
-        debugResponse(response)
         
         if response.status_code == 200:
             userData = response.json()
@@ -375,9 +340,8 @@ class KietLaBo:
             log.failure(f"Lỗi khi get info: {response.text}, {response.status_code}")
             return None
     
-    @debug
     @retryWithRateLimit()
-    def cloneToken(self, token: str) -> str | None:
+    def cloneToken(self, token: str) -> str | None | int:
         try:
             ws = websocket.create_connection(
                 "wss://remote-auth-gateway.discord.gg/?v=2",
@@ -388,7 +352,6 @@ class KietLaBo:
             )
 
             helloPayload = ws.recv()
-            debug(f"Received Hello: {helloPayload}")
 
             privateKey = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
             publicKey = privateKey.public_key()
@@ -397,47 +360,34 @@ class KietLaBo:
             ws.send(json.dumps({"op": "init", "encoded_public_key": encryptionKey}))
             
             noncePayloadStr = ws.recv()
-            debug(f"Received Nonce Payload: {noncePayloadStr}")
             noncePayload = json.loads(noncePayloadStr)
             encryptedNonceB64 = noncePayload.get("encrypted_nonce")
 
             if not encryptedNonceB64:
-                log.failure("Ko lấy được nonce mã hóa")
                 ws.close()
-                return None
+                return "error: Ko lấy được nonce mã hóa"
 
             nonceProof = self.misc.generateNonceProof(encryptedNonceB64, privateKey)
             
             ws.send(json.dumps({"op": "nonce_proof", "proof": nonceProof}))
             
             fingerprintPayloadStr = ws.recv()
-            debug(f"Đã thu thập được dấu vân tay: {fingerprintPayloadStr}")
             fingerprintPayload = json.loads(fingerprintPayloadStr)
             fingerprint = fingerprintPayload.get("fingerprint")
             
             if fingerprint:
                 handshakeSuccess = self.createHandshake(token, fingerprint)
                 if not handshakeSuccess:
-                    log.failure("Quá trình tạo xác thực đã thất bại sau khi nhận được dấu vân tay.")
                     ws.close()
-                    return None
+                    return "error: Quá trình tạo xác thực đã thất bại sau khi nhận được dấu vân tay."
                 elif handshakeSuccess == 401:
                     return 401
+                elif handshakeSuccess == "captcha":
+                    return "captcha"
                 
                 userPayloadStr = ws.recv()
-                debug(f"Đã nhận được dữ liệu người dùng: {userPayloadStr}")
-                userPayload = json.loads(userPayloadStr)
-                encryptedUserPayload = userPayload.get("encrypted_user_payload")
-                
-                if encryptedUserPayload:
-                  
-                    decryptedUserInfo = self.misc.decryptData(encryptedUserPayload, privateKey)
-                    debug(f"Thông tin người dùng đã được giải mã: {decryptedUserInfo}")
-                else:
-                    log.warning("Không nhận được dữ liệu người dùng được mã hóa (có thể không sao).")
                 
                 ticketPayloadStr = ws.recv()
-                debug(f"Đã nhận dữ liệu ticket: {ticketPayloadStr}")
                 ticketPayload = json.loads(ticketPayloadStr)
                 ticket = ticketPayload.get("ticket")
                 
@@ -449,8 +399,6 @@ class KietLaBo:
                             "https://discord.com/api/v9/users/@me/remote-auth/login", 
                             json={"ticket": ticket}
                         )
-
-                        debugResponse(response)
                         
                         if response.status_code == 200:
                             encryptedTokenB64 = response.json().get("encrypted_token")
@@ -459,10 +407,9 @@ class KietLaBo:
                                  if newTokenBytes:
                                      return newTokenBytes.decode('utf-8')
                                  else:
-                                     log.failure("Không thể giải mã token new.")
+                                     return "error: Không thể giải mã token new."
                             else:
-                                log.failure("Phản hồi không chứa 'encrypted_token'.")
-                            break
+                                return "error: Phản hồi không chứa 'encrypted_token'."
                         elif response.status_code == 429: 
                             if attempt < 4: 
                                 retryAfter = response.headers.get('retry-after')
@@ -483,34 +430,27 @@ class KietLaBo:
                                 time.sleep(waitTime)
                                 continue
                             else:
-                                break
+                                return "error: Rate limited khi login."
                         else:
-                             break
+                             return f"error: Lỗi khi login, status {response.status_code}: {response.text[:100]}"
 
                 else:
-                    log.failure("ko nhận được ticket.")
+                    return "error: Ko nhận được ticket."
             else:
-                log.failure("Không nhận được dấu vân tay.")
+                return "error: Không nhận được dấu vân tay."
             
             ws.close() 
-            return None
+            return "error: Lỗi không xác định trong cloneToken"
         except websocket.WebSocketException as e:
-            log.failure(f"Lỗi WebSocket: {e}")
-            return None
+            return f"error: Lỗi WebSocket: {e}"
         except json.JSONDecodeError as e:
-            log.failure(f"Không thể giải mã JSON từ websocket.: {e}")
-            return None
+            return f"error: Không thể giải mã JSON từ websocket: {e}"
         except Exception as e:
             if "Ciphertext length must be equal to key size" in str(e):
-                 log.failure(f"RSA Decryption error: {e}. Check received data format.")
+                 return f"error: Lỗi giải mã RSA: {e}. Kiểm tra định dạng dữ liệu nhận được."
             else:
-                 log.failure(f"An unknown error occurred in cloneToken: {e}")
-            try:
-                if ws and ws.connected:
-                    ws.close()
-            except: 
-                pass
-            return None
+                 return f"error: Đã xảy ra lỗi không xác định trong cloneToken: {e}"
+
 
 def BoMayLaHoangGiaKiet(originalLine: str, misc: Miscellaneous, fileLock: threading.Lock, titleUpdater: Miscellaneous.Title, totalTokens: int) -> bool:
     startTime = time.time()
@@ -527,6 +467,20 @@ def BoMayLaHoangGiaKiet(originalLine: str, misc: Miscellaneous, fileLock: thread
                 log.failure(f"Token không hợp lệ: {token[:30]}...")
                 with fileLock:
                     with open(f"{outputFolder}/invalid.txt", "a", encoding="utf-8") as f:
+                        f.write(f"{rawLine}\n")
+                return False
+
+            elif newToken == "captcha":
+                log.failure(f"Fail - Gặp captcha khi scan QR cho token: {token[:30]}...")
+                with fileLock:
+                    with open(f"{outputFolder}/failed.txt", "a", encoding="utf-8") as f:
+                        f.write(f"{rawLine}\n")
+                return False
+
+            elif isinstance(newToken, str) and newToken.startswith("error:"):
+                log.failure(f"Không thể sao chép token: {newToken[6:]}")
+                with fileLock:
+                    with open(f"{outputFolder}/failed.txt", "a", encoding="utf-8") as f:
                         f.write(f"{rawLine}\n")
                 return False
 
@@ -587,6 +541,7 @@ def BoMayLaHoangGiaKiet(originalLine: str, misc: Miscellaneous, fileLock: thread
 
     return False
 
+
 def main() -> None:
     try:
         startTime = time.time()
@@ -594,11 +549,11 @@ def main() -> None:
         print(màu("""
                                                                                 
   ▄▄▄▄▄▄▄                                 ▄   ▄▄▄▄                              
- █▀▀██▀▀▀▀                                ▀██████▀ █▄                           
+ █▀▀██▀▀▀▀                                ▀█████▀ █▄                           
     ██         ▄▄           ▄               ██     ██          ▄        ▄▄      
     ██   ▄███▄ ██ ▄█▀ ▄█▀█▄ ████▄ ▄██▀█     ██     ████▄ ▄▀▀█▄ ████▄ ▄████ ▄█▀█▄
     ██   ██ ██ ████   ██▄█▀ ██ ██ ▀███▄     ██     ██ ██ ▄█▀██ ██ ██ ██ ██ ██▄█▀
-    ▀██▄▄▀███▀▄██ ▀█▄▄▀█▄▄▄▄██ ▀██▄▄██▀     ▀█████▄██ ██▄▀█▄██▄██ ▀█▄▀████▄▀█▄▄▄
+    ▀██▄▄▀███▀▄██ ▀█▄▄▀█▄▄▄▄██ ▀██▄▄██▀     ▀█████▄██ ██▄▀█▄██▄██ ▀█▄▀███▄▀█▄▄▄
                                                                         ██      
                                                                       ▀▀▀       
 
@@ -612,6 +567,12 @@ def main() -> None:
 """))
         with open("input/tokens.txt", 'r', encoding="utf-8") as f:
             rawLines = [line.strip() for line in f if line.strip()]
+
+        log.info(f"Tìm thấy {len(rawLines)} token trong file input/tokens.txt")
+        confirm = input(màu("[Hoang Gia Kiet] Run Tool? (y/n): ")).strip().lower()
+        if confirm != 'y':
+            log.info("Đã hủy chạy tool.")
+            return
 
         if not rawLines:
             log.warning("Thêm token vào input/tokens.txt đi thằng ngu ơi")
@@ -646,21 +607,22 @@ def main() -> None:
                 except Exception as e:
                     log.failure(f"Lỗi: {line[:30]}... | {e}")
         
-        log.info("Change Full Token Successfully. Kiểm tra output và lên phím 36 hoặc bất kỳ phím nào để thoát")
+        log.info("Done All. Kiểm tra output và lên phím 36 hoặc bất kỳ phím nào để thoát")
         input("")
         try:
             outputPath = os.path.abspath(outputFolder)
             os.startfile(outputPath)
-            log.info(f"Opened output folder: {outputPath}")
+            log.info(f"Đã mở thư mục output: {outputPath}")
         except Exception as e:
-            log.warning(f"Failed to open output folder: {e}")
+            log.warning(f"Không thể mở thư mục output: {e}")
 
         titleUpdater.stopTitleUpdates()
 
     except KeyboardInterrupt:
-        log.info("Exit")
+        log.info("Thoát")
     except Exception as e:
         pass
+
 
 if __name__ == "__main__":
     main()
